@@ -6,9 +6,9 @@ This script will backup directories, web sites, mysql and mongodb databases, opt
 
 server-backup.conf needs to be customized and placed in one of the common system configuration directories:
 
-/etc/default
-/etc/conf.d
-/etc/init.d 
+  - /etc/default
+  - /etc/conf.d
+  - /etc/init.d 
 
 The configuration file uses 1 and 0 to toggle certain features on and off. Please see the file itself for documentation of the various flags and fields.
 
