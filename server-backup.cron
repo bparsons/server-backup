@@ -1,0 +1,6 @@
+# Server Backup
+SHELL=/bin/bash
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+MAILTO=youremail@yourdomain.com
+30 02 * * * root /usr/local/bin/server-backup.sh
+
