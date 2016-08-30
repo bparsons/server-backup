@@ -1,6 +1,6 @@
 # Simple Server Backup Script 
 
-This script will backup directories, web sites, mysql and mongodb databases, optionally encrypt them and send them to a remote server via rsync or Amazon S3
+This script will backup directories, web sites, and databases (mysql, postgresql, mongodb), optionally encrypt them and send them to a remote server via rsync or Amazon S3
 
 ## Usage
 

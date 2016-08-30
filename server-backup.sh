@@ -23,6 +23,7 @@
 ## 14-o5-15 - bcp - compress mysql dumps inline instead of creating the dump file and then compressing
 ## 15-1o-22 - bcp - sync files to Amazon S3
 ## 15-11-o2 - bcp - Add flag for using Amazon S3 and SendFile function to route accordingly
+## 16-o8-25 - bcp - Add postgresql support
 ##
 #
 
@@ -33,10 +34,20 @@
 ## Config Location
 ##
 ## /etc/conf.d - Arch Linux \(^-^)/
-## /etc/default - Ubuntu/Debian (v_v)
+## /etc/default - CentOS (-.-) Ubuntu/Debian (v_v)
 ## /etc/init.d - What planet are you from? (o.O)
-##
-#
+##                                                                                                                                      
+#                                                                                                                                       
+                                                                                                                                        
+## Defaults                                                                                                                             
+BINARYDPART=0
+DOMONGO=0
+DOMYSQL=0
+DOPSQL=0
+DOWWW=0
+ENCRYPTFILES=0
+KEEPLOCALENC=0
+USES3=0
 
 CONFIGLOCATIONS="/etc/conf.d /etc/default /etc/init.d"
 for conf in ${CONFIGLOCATIONS}
@@ -239,7 +250,7 @@ done
 ## Web Sites Processing
 ##
 
-if [ ${DOWWW} -gt 0 ]
+if [ $DOWWW -gt 0 ]
 then
         echo "Starting WWW backup $(date)"
 
@@ -417,6 +428,72 @@ then
                 echo "Done."
         done
 fi
+
+##
+## Postgresql Processing
+##
+
+if [ ${DOPSQL} -gt 0 ]
+then
+        echo "Starting Postgresql backup $(date)"
+
+        if [ -d ${BACKUPDIR}/psql ]
+        then
+                echo "${BACKUPDIR}/psql found"
+                chown -R postgres ${BACKUPDIR}/psql
+        else
+                echo "Creating ${BACKUPDIR}/psql..."
+                mkdir ${BACKUPDIR}/psql
+                chown -R postgres ${BACKUPDIR}/psql
+                echo "Done"
+        fi
+
+        DATABASES=$(su -c "psql -c 'SELECT datname FROM pg_database'" postgres | grep -v datname | grep -v "\-\-\-\-\-\-" | grep -v "rows)")
+
+        for db in ${DATABASES}
+        do
+                if [ -e ${BACKUPDIR}/psql/${db}.psql-${dpart}-${SHORTHOSTNAME}.bz2 ]
+                then
+                        rm -f ${BACKUPDIR}/psql/${db}.psql-${dpart}-${SHORTHOSTNAME}.bz2
+                fi
+                echo -n "Dumping and Packing ${db}..."
+                su -c "/usr/bin/pg_dump ${db}" postgres | nice -${NICE} bzip2 -9 -c > ${BACKUPDIR}/psql/${db}.psql-${dpart}-${SHORTHOSTNAME}.bz2
+                if [ ${ENCRYPTFILES} -gt 0 ]
+                then
+                        echo -n "encrypting..."
+                        EncryptFile ${BACKUPDIR}/psql/${db}.psql-${dpart}-${SHORTHOSTNAME}.bz2
+                        filesize=$(du -b ${BACKUPDIR}/psql/${db}.psql-${dpart}-${SHORTHOSTNAME}.bz2.gpg | awk '{print$1}')
+                        if [ ${KEEPLOCALENC} -gt 0 ]
+                        then
+                                rm -f ${BACKUPDIR}/psql/${db}.psql-${dpart}-${SHORTHOSTNAME}.bz2
+                        fi
+                else
+                        filesize=$(du -b ${BACKUPDIR}/psql/${db}.psql-${dpart}-${SHORTHOSTNAME}.bz2 | awk '{print$1}')
+                fi
+                totalbytes=$(expr $totalbytes + $filesize)
+                humanprint=$(HumanReadableBytes $filesize)
+                echo -n "syncing $humanprint to remote server..."
+                if [ ${ENCRYPTFILES} -gt 0 ]
+                then
+                        SendFile ${BACKUPDIR}/psql/${db}.psql-${dpart}-${SHORTHOSTNAME}.bz2.gpg ${REMOTEDBDIR}
+                else
+                        SendFile ${BACKUPDIR}/psql/${db}.psql-${dpart}-${SHORTHOSTNAME}.bz2 ${REMOTEDBDIR}
+                fi
+                if [ ${KEEPLOCALCOPY} -eq 0 ]
+                then
+                        echo -n "removing local copy..."
+                        rm -f ${BACKUPDIR}/psql/${db}.psql-${dpart}-${SHORTHOSTNAME}.bz2
+                fi
+                if [ ${KEEPLOCALENC} -eq 0 ]
+                then
+                        echo -n "removing local encrypted copy..."
+                        rm -f ${BACKUPDIR}/psql/${db}.psql-${dpart}-${SHORTHOSTNAME}.bz2.gpg
+                fi
+                echo "Done."
+
+        done
+fi
+
 
 #
 # Print Totals
